@@ -1,0 +1,18 @@
+export const COLORS = {
+    bg: "#0C0F15",
+    bgCard: "#101a2a",
+    bgCardHover: "#162235",
+    bgGlass: "rgba(212,168,83,0.06)",
+    border: "rgba(212,168,83,0.18)",
+    borderHover: "rgba(212,168,83,0.35)",
+    gold: "#D4A853",
+    goldLight: "#F5E8C7",
+    goldDim: "rgba(212,168,83,0.12)",
+    text: "#F5E8C7",
+    textMuted: "#7A7363",
+    textDim: "#5C5749",
+    accent: "#A855F7",
+    accentDim: "rgba(168,85,247,0.15)",
+    success: "#7BB39A",
+    purple: "#7c6df0",
+};

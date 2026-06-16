@@ -1,0 +1,38 @@
+mutation CreateSeedData @transaction {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      displayName: "Alice",
+      tokenBalance: 100
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      displayName: "Bob",
+      tokenBalance: 50
+    }
+  ])
+  category_insertMany(data: [
+    {
+      id: "660e8400-e29b-41d4-a716-446655440001",
+      name: "Electronics"
+    }
+  ])
+  product_insertMany(data: [
+    {
+      id: "770e8400-e29b-41d4-a716-446655440001",
+      name: "Smartphone",
+      priceFiat: 599.99,
+      priceTokens: 500,
+      stockQuantity: 10,
+      category: { id: "660e8400-e29b-41d4-a716-446655440001" }
+    },
+    {
+      id: "770e8400-e29b-41d4-a716-446655440002",
+      name: "Headphones",
+      priceFiat: 199.99,
+      priceTokens: 200,
+      stockQuantity: 25,
+      category: { id: "660e8400-e29b-41d4-a716-446655440001" }
+    }
+  ])
+}

@@ -1,0 +1,11 @@
+[
+  { "id": "products",    "label": "Physical Products",   "icon": "box" },
+  { "id": "services",     "label": "Services",            "icon": "wrench" },
+  { "id": "freelancers",  "label": "Freelancers",         "icon": "laptop" },
+  { "id": "jobs",         "label": "Jobs & Opportunities","icon": "briefcase" },
+  { "id": "rentals",      "label": "Rentals",             "icon": "key" },
+  { "id": "giveaways",    "label": "Giveaways",           "icon": "gift" },
+  { "id": "islamic",      "label": "Islamic Products & Books", "icon": "book" },
+  { "id": "local",        "label": "Local Businesses",    "icon": "store" },
+  { "id": "digital",      "label": "Digital Products",    "icon": "download" }
+]

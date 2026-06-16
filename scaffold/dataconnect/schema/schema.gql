@@ -1,0 +1,52 @@
+type User @table {
+  displayName: String!
+  tokenBalance: Int! @default(expr: "0")
+  email: String
+  avatarUrl: String
+  kycTier: Int @default(expr: "0")
+}
+
+type KYC @table {
+  user: User! @unique
+  status: String! @default(expr: "'pending'")
+  govIdNumber: String
+  idImageUrl: String
+}
+
+type SellerProfile @table {
+  user: User! @unique
+  shopName: String!
+  location: String!
+  phone: String!
+}
+
+type Category @table {
+  name: String! @unique
+}
+
+type Product @table {
+  name: String!
+  description: String
+  imageUrl: String
+  priceFiat: Float!
+  priceTokens: Int!
+  stockQuantity: Int!
+  category: Category!
+  seller: SellerProfile!
+}
+
+type Transaction @table {
+  user: User!
+  product: Product!
+  amountPaidFiat: Float!
+  amountPaidTokens: Int!
+  transactionDate: Timestamp! @default(expr: "now()")
+}
+
+type RentalBooking @table {
+  user: User!
+  product: Product!
+  startDate: Date!
+  endDate: Date!
+  status: String! @default(expr: "'pending'")
+}

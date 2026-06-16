@@ -1,0 +1,171 @@
+[
+  {
+    "id": "lst_1001",
+    "title": "Hand-embroidered modest abaya",
+    "category": "products",
+    "sellerId": "sel_001",
+    "description": "Slow-made abaya with hand-stitched calligraphy on the cuffs. Breathable cotton blend. Made to order in 2 sizes.",
+    "images": [
+      "https://picsum.photos/seed/abaya/600/450"
+    ],
+    "price": {
+      "amount": 120,
+      "currency": "GBP",
+      "dinarz": 1200,
+      "negotiable": true
+    },
+    "location": "Birmingham, UK",
+    "condition": "new",
+    "tags": [
+      "modest",
+      "handmade",
+      "clothing"
+    ],
+    "createdAt": "2026-06-05T10:20:00Z",
+    "status": "active",
+    "interestCount": 14,
+    "saveCount": 9,
+    "isFreebie": false
+  },
+  {
+    "id": "lst_1002",
+    "title": "Freelance: small-business website (5 pages)",
+    "category": "freelancers",
+    "sellerId": "sel_002",
+    "description": "I'll design and build a clean, fast 5-page site for your halal small business. Includes contact form and mobile layout. No riba-based payment plugins.",
+    "images": [
+      "https://picsum.photos/seed/website/600/450"
+    ],
+    "price": {
+      "amount": 400,
+      "currency": "CAD",
+      "dinarz": 4000,
+      "negotiable": true
+    },
+    "location": "Remote",
+    "condition": "service",
+    "tags": [
+      "web",
+      "developer",
+      "service"
+    ],
+    "createdAt": "2026-06-07T14:00:00Z",
+    "status": "active",
+    "interestCount": 6,
+    "saveCount": 4,
+    "isFreebie": false
+  },
+  {
+    "id": "lst_1003",
+    "title": "Free: box of children's Islamic books (local pickup)",
+    "category": "giveaways",
+    "sellerId": "sel_003",
+    "description": "Giving away a box of gently-used kids' Islamic storybooks. First come, first served. Pickup only.",
+    "images": [
+      "https://picsum.photos/seed/books/600/450"
+    ],
+    "price": {
+      "amount": 0,
+      "currency": "MYR",
+      "dinarz": 0,
+      "negotiable": false
+    },
+    "location": "Kuala Lumpur, MY",
+    "condition": "used",
+    "tags": [
+      "free",
+      "books",
+      "kids",
+      "islamic"
+    ],
+    "createdAt": "2026-06-08T08:30:00Z",
+    "status": "active",
+    "interestCount": 31,
+    "saveCount": 22,
+    "isFreebie": true
+  },
+  {
+    "id": "lst_1004",
+    "title": "Quran & Arabic tutoring — first session free",
+    "category": "services",
+    "sellerId": "sel_004",
+    "description": "One-to-one online Quran recitation and Arabic basics for all ages. Flexible times. First trial session is free.",
+    "images": [
+      "https://picsum.photos/seed/tutor/600/450"
+    ],
+    "price": {
+      "amount": 15,
+      "currency": "USD",
+      "dinarz": 150,
+      "negotiable": false
+    },
+    "location": "Online",
+    "condition": "service",
+    "tags": [
+      "education",
+      "quran",
+      "arabic"
+    ],
+    "createdAt": "2026-06-08T19:45:00Z",
+    "status": "active",
+    "interestCount": 19,
+    "saveCount": 12,
+    "isFreebie": false
+  },
+  {
+    "id": "lst_1005",
+    "title": "Date & honey cake — local pickup or delivery",
+    "category": "local",
+    "sellerId": "sel_003",
+    "description": "Homemade date and honey cake, no artificial additives. Order 24h ahead. Halal certified kitchen.",
+    "images": [
+      "https://picsum.photos/seed/cake/600/450"
+    ],
+    "price": {
+      "amount": 45,
+      "currency": "MYR",
+      "dinarz": 450,
+      "negotiable": false
+    },
+    "location": "Kuala Lumpur, MY",
+    "condition": "new",
+    "tags": [
+      "food",
+      "bakery",
+      "halal"
+    ],
+    "createdAt": "2026-06-09T07:10:00Z",
+    "status": "active",
+    "interestCount": 8,
+    "saveCount": 5,
+    "isFreebie": false
+  },
+  {
+    "id": "lst_1006",
+    "title": "Digital download: Arabic calligraphy print pack",
+    "category": "digital",
+    "sellerId": "sel_001",
+    "description": "Set of 6 printable high-res calligraphy designs (Ayat & du'a). Personal use. Instant download after exchange.",
+    "images": [
+      "https://picsum.photos/seed/calligraphy/600/450"
+    ],
+    "price": {
+      "amount": 8,
+      "currency": "GBP",
+      "dinarz": 80,
+      "negotiable": false
+    },
+    "location": "Digital",
+    "condition": "digital",
+    "tags": [
+      "digital",
+      "art",
+      "download"
+    ],
+    "createdAt": "2026-06-06T12:00:00Z",
+    "status": "active",
+    "interestCount": 27,
+    "saveCount": 18,
+    "isFreebie": false
+  }
+]

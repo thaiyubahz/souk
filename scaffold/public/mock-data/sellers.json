@@ -1,0 +1,58 @@
+[
+  {
+    "id": "sel_001",
+    "name": "Aisha Rahman",
+    "handle": "@aisha_makes",
+    "avatar": "https://i.pravatar.cc/150?img=47",
+    "location": "Birmingham, UK",
+    "trustScore": 92,
+    "trustBadge": "trusted",
+    "joinedAt": "2024-09-12",
+    "bio": "Handmade modest clothing & calligraphy. Ethical, slow-made.",
+    "responseTime": "usually replies within 2 hours",
+    "ratingsCount": 38,
+    "ratingAvg": 4.8
+  },
+  {
+    "id": "sel_002",
+    "name": "Yusuf Adeyemi",
+    "handle": "@yusuf_dev",
+    "avatar": "https://i.pravatar.cc/150?img=12",
+    "location": "Toronto, CA",
+    "trustScore": 76,
+    "trustBadge": "verified",
+    "joinedAt": "2025-01-03",
+    "bio": "Freelance web developer. Building halal-friendly small-business sites.",
+    "responseTime": "usually replies within a day",
+    "ratingsCount": 11,
+    "ratingAvg": 4.6
+  },
+  {
+    "id": "sel_003",
+    "name": "Khadija Bakeshop",
+    "handle": "@khadija_bakes",
+    "avatar": "https://i.pravatar.cc/150?img=32",
+    "location": "Kuala Lumpur, MY",
+    "trustScore": 88,
+    "trustBadge": "trusted",
+    "joinedAt": "2024-06-21",
+    "bio": "Home bakery — halal cakes & date treats for local pickup.",
+    "responseTime": "usually replies within 4 hours",
+    "ratingsCount": 64,
+    "ratingAvg": 4.9
+  },
+  {
+    "id": "sel_004",
+    "name": "Ibrahim Tutoring",
+    "handle": "@ibrahim_teaches",
+    "avatar": "https://i.pravatar.cc/150?img=15",
+    "location": "Online",
+    "trustScore": 70,
+    "trustBadge": "new",
+    "joinedAt": "2025-04-18",
+    "bio": "Quran & Arabic tutoring for kids and adults. First session free.",
+    "responseTime": "usually replies within 3 hours",
+    "ratingsCount": 5,
+    "ratingAvg": 5.0
+  }
+]

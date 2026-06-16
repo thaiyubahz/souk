@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Testing
+/coverage
+
+# Production
+/dist
+
+# Misc
+.DS_Store
+*.pem
+
+# Firebase
+.firebase/
+firebase-debug.log*
+.firebaserc
+
+# IDEs
+.vscode/
+.idea/

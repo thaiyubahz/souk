@@ -1,0 +1,21 @@
+mutation CreateUser($displayName: String!, $tokenBalance: Int!) @auth(level: PUBLIC) {
+  user_insert(data: { displayName: $displayName, tokenBalance: $tokenBalance })
+}
+
+mutation CreateProduct($name: String!, $priceFiat: Float!, $priceTokens: Int!, $stock: Int!, $categoryId: UUID!) @auth(level: USER) {
+  product_insert(data: { name: $name, priceFiat: $priceFiat, priceTokens: $priceTokens, stockQuantity: $stock, categoryId: $categoryId })
+}
+
+mutation CreateRentalBooking($userId: UUID!, $productId: UUID!, $startDate: Date!, $endDate: Date!, $status: String!) @auth(level: USER) {
+  rentalBooking_insert(data: { userId: $userId, productId: $productId, startDate: $startDate, endDate: $endDate, status: $status })
+}
+
+query ListProductsWithCategories @auth(level: PUBLIC) {
+  products {
+    name
+    priceFiat
+    category {
+      name
+    }
+  }
+}
