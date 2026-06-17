@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// ============================================================================
+// PROTOTYPE rules — for the live demo database (which runs WITHOUT login).
+//
+// These intentionally allow UNAUTHENTICATED creates (because there's no login
+// in the prototype), but validate every write and lock everything else down.
+// They replace the wide-open "test mode" the project starts in.
+//
+// NOT for production — the real, login-based rules live in firestore.rules and
+// apply once the Souk is merged into the logged-in main app.
+//
+// To activate: paste this into Firebase Console -> Firestore Database -> Rules
+// -> Publish.
+// ============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A listing must have a real name, a non-negative numeric price, and an
+    // image string small enough to keep the document under Firestore's 1 MB
+    // limit (this also enforces the "keep it free / under the limit" rule).
+    function validListing(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 200
+        && d.price is number && d.price >= 0
+        && d.img is string && d.img.size() < 1400000;
+    }
+
+    // Halal guardrail — reject a listing whose name contains a prohibited term.
+    function isHalal(d) {
+      return !(d.name.lower().matches('.*(weapon|guns?|rifle|pistol|firearm|ammo|ammunition|explosive|alcohol|wine|beer|liquor|whisky|vodka|drugs?|cocaine|heroin|cannabis|marijuana|pork|bacon|gambling|casino|lottery|betting|riba|tobacco|cigarette|vape|porn).*'));
+    }
+
+    // Products — anyone can read (public marketplace); anyone can create a
+    // VALID, HALAL listing (no login in the prototype); nobody can edit/delete
+    // (there's no logged-in owner to verify, so block tampering).
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if validListing(request.resource.data)
+        && isHalal(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Seller profiles — public to read; basic validation on create; no edits.
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200;
+      allow update, delete: if false;
+    }
+
+    // Every other collection is locked.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

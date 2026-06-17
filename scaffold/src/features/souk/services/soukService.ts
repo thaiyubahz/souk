@@ -1,10 +1,9 @@
-import { auth, db, storage, isFirebaseConfigured } from "@/config/firebase.config";
+import { db, isFirebaseConfigured } from "@/config/firebase.config";
 import {
-    collection, doc, setDoc, addDoc, getDoc,
+    collection, doc, setDoc, addDoc,
     onSnapshot, query, where, orderBy, serverTimestamp,
-    limit, Unsubscribe, updateDoc
+    limit, updateDoc, type Unsubscribe,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { Product } from "../components/Types";
 
 export interface BecomeSellerData {
@@ -40,6 +39,58 @@ const mapMockProduct = (item: any): Product => ({
     sellerPhone: "",
     sellerId: item.sellerId || ""
 });
+
+// Halal guardrail (prototype): a basic prohibited-items list. A new listing
+// whose name/category/shop mentions any of these is rejected before it can be
+// saved. The Feature PDF (§10 Moderation, §11 Halal Principles) envisions a
+// fuller pipeline — AI screening, community reporting, scholar escalation — and
+// this is the first, simplest layer of that.
+const PROHIBITED_TERMS = [
+    "weapon", "weapons", "gun", "guns", "rifle", "pistol", "firearm", "ammo",
+    "ammunition", "knife for attack", "explosive", "alcohol", "wine", "beer",
+    "liquor", "whisky", "vodka", "drug", "drugs", "cocaine", "heroin", "cannabis",
+    "weed", "marijuana", "pork", "bacon", "ham ", "gambling", "casino", "lottery",
+    "betting", "riba", "interest loan", "cigarette", "tobacco", "vape", "porn",
+];
+
+/**
+ * Read an image File and return a small JPEG data URL. The image is scaled down
+ * (longest side ≤ 800px) and re-encoded at ~70% quality so the result stays
+ * well under Firestore's 1 MB-per-document limit and the free-tier quota —
+ * which means the picture can be stored *inside* the product document with no
+ * paid Storage service. Browser-only (uses canvas); runs at create time.
+ */
+async function fileToCompressedDataUrl(
+    file: File,
+    maxDim = 800,
+    quality = 0.7,
+): Promise<string> {
+    const rawDataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Could not read the image file."));
+        reader.readAsDataURL(file);
+    });
+
+    const image: HTMLImageElement = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Could not load the image."));
+        img.src = rawDataUrl;
+    });
+
+    const scale = Math.min(1, maxDim / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return rawDataUrl; // very old browser — fall back to the raw image
+    ctx.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", quality);
+}
 
 export const SoukService = {
     /**
@@ -98,96 +149,74 @@ export const SoukService = {
     },
 
     /**
-     * Handles the complex multi-step process of establishing a new shop.
+     * Create a new listing (prototype).
+     *
+     * No login required. The product photo is shrunk and stored *inline* in the
+     * Firestore document (free — no paid Storage service), and a basic halal /
+     * prohibited-items check runs before anything is written.
      */
-    establishShop: async (data: BecomeSellerData, idFile: File | null, productFile: File | null) => {
-        // Use local backend if Firebase is not configured or as a preference
-        try {
-            const formData = new FormData();
-            Object.entries(data).forEach(([key, value]) => formData.append(key, value));
-            if (idFile) formData.append("idFile", idFile);
-            if (productFile) formData.append("productFile", productFile);
-
-            const response = await fetch(`${BACKEND_URL}/establish-shop`, {
-                method: "POST",
-                body: formData,
-            });
-
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch (e) {
-            console.warn("Local backend failed, attempting Firebase...");
+    establishShop: async (data: BecomeSellerData, _idFile: File | null, productFile: File | null) => {
+        if (!isFirebaseConfigured || !db) {
+            throw new Error("Firebase is not configured (.env). Cannot save the listing.");
         }
 
-        if (!isFirebaseConfigured) throw new Error("No backend available (Local or Firebase).");
-        if (!auth.currentUser) throw new Error("Authentication required for Firebase.");
-
-        const uid = auth.currentUser.uid;
-        const timestamp = serverTimestamp();
-
-        // 1. Upload files to Storage
-        let idUrl = "";
-        if (idFile) {
-            const idRef = ref(storage, `kyc/${uid}/${Date.now()}_${idFile.name}`);
-            const snapshot = await uploadBytes(idRef, idFile);
-            idUrl = await getDownloadURL(snapshot.ref);
+        // Halal guardrail — reject prohibited items before writing anything.
+        const haystack = `${data.productName} ${data.productCategory} ${data.shopName}`.toLowerCase();
+        const banned = PROHIBITED_TERMS.find((term) => haystack.includes(term));
+        if (banned) {
+            throw new Error(
+                `This listing mentions "${banned.trim()}", which isn't allowed on the Souk. ` +
+                `Only halal, ethical items can be listed.`,
+            );
         }
 
-        let productUrl = "sparkle";
+        // Shrink the photo to a small data URL so it fits inside the document
+        // (well under Firestore's 1 MB limit) — no paid Storage needed.
+        let img = "sparkle";
         if (productFile) {
-            const prodRef = ref(storage, `products/${uid}/${Date.now()}_${productFile.name}`);
-            const snapshot = await uploadBytes(prodRef, productFile);
-            productUrl = await getDownloadURL(snapshot.ref);
+            img = await fileToCompressedDataUrl(productFile);
         }
 
-        // 2. Atomic-like updates (simplified for prototype)
-        // KYC
-        await setDoc(doc(db, "kyc", uid), {
-            userId: uid,
-            fullName: data.fullName,
-            idType: data.idType,
-            idNumber: data.idNumber,
-            idDocumentUrl: idUrl,
-            status: "pending",
-            updatedAt: timestamp
-        });
-
-        // Seller Profile
-        await setDoc(doc(db, "sellers", uid), {
-            userId: uid,
-            shopName: data.shopName,
-            phone: data.contactPhone,
-            address: data.shopAddress,
-            rating: 0,
-            isVerified: false,
-            createdAt: timestamp
-        });
-
-        // First Listing
-        const productRef = doc(collection(db, "products"));
         const parsedPrice = parseFloat(data.productPrice) || 0;
+        const createdAt = new Date().toISOString();
 
-        await setDoc(productRef, {
+        // Best-effort seller profile (doesn't block the listing if it fails).
+        const sellerId = `seller_${createdAt}`;
+        try {
+            await setDoc(doc(db, "sellers", sellerId), {
+                shopName: data.shopName,
+                name: data.shopName,
+                phone: data.contactPhone,
+                address: data.shopAddress,
+                rating: 5,
+                isVerified: false,
+                createdAt,
+            });
+        } catch (e) {
+            console.warn("Could not write seller profile (continuing):", e);
+        }
+
+        // The listing itself — shaped to match what the Souk product feed reads.
+        const productRef = await addDoc(collection(db, "products"), {
             name: data.productName,
             category: data.productCategory,
             price: parsedPrice,
             type: data.mode,
-            sellerId: uid,
+            sellerId,
             seller: data.shopName,
             sellerPhone: data.contactPhone,
-            location: data.shopAddress.split(',').pop()?.trim() || "Local",
+            location: data.shopAddress.split(",").pop()?.trim() || "Local",
             rating: 5,
-            reviews: 1,
-            unit: data.mode === "rent" ? "per day" : "per unit",
+            reviews: 0,
+            unit: data.mode === "rent" ? "per day" : "per item",
             description: data.productName,
-            img: productUrl,
+            img,
             tags: ["community", "ethical"],
             badge: "New Seller",
-            createdAt: timestamp
+            createdAt,
         });
 
-        return { uid, productId: productRef.id };
+        return { sellerId, productId: productRef.id };
     },
 
     /**

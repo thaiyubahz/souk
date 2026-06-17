@@ -62,7 +62,7 @@ export function ProductCard({ product, onView, onLike, isLiked }: ProductCardPro
                 position: "relative",
                 borderBottom: `1px solid ${COLORS.border}`
             }}>
-                {product.img && product.img.startsWith('http') ? (
+                {product.img && (product.img.startsWith('http') || product.img.startsWith('data:')) ? (
                     <img src={product.img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                     <div style={{ opacity: 0.2, transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)", transform: hovered ? "scale(1.2) rotate(8deg)" : "scale(1)" }}>
@@ -132,7 +132,7 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
                         marginBottom: 24,
                         overflow: "hidden"
                     }}>
-                        {product.img && product.img.startsWith('http') ? (
+                        {product.img && (product.img.startsWith('http') || product.img.startsWith('data:')) ? (
                             <img src={product.img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             <Sparkle size={160} weight="thin" color={COLORS.gold} style={{ opacity: 0.15 }} />
