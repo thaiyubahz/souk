@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import type { Product } from "../components/Types";
 import { getDeviceId } from "./identity";
+import { BACKEND_URL } from "@/lib/api";
 
 export interface BecomeSellerData {
     fullName: string;
@@ -18,8 +19,6 @@ export interface BecomeSellerData {
     productPrice: string;
     mode: "sale" | "rent";
 }
-
-const BACKEND_URL = "http://localhost:8000/api";
 
 const mapMockProduct = (item: any): Product => ({
     id: item.id.toString(),
@@ -122,7 +121,7 @@ export const SoukService = {
      */
     subscribeToProducts: (callback: (products: Product[]) => void): Unsubscribe => {
         // Try to fetch from the Python Backend
-        fetch(`${BACKEND_URL}/products`)
+        fetch(`${BACKEND_URL}/api/products`)
             .then(async r => {
                 if (!r.ok) throw new Error("Backend offline");
                 return r.json();

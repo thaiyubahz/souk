@@ -5,9 +5,8 @@ import {
 } from "@phosphor-icons/react";
 import BecomeSeller from "./BecomeSeller";
 import { COLORS, type Product, ProductCard, ProductDetail, Navbar, BottomNav, Footer, StarRating } from "../components/SoukCommon";
-import { auth, db, isFirebaseConfigured } from "@/config/firebase.config";
+import { auth, isFirebaseConfigured } from "@/config/firebase.config";
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { collection, query, onSnapshot, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { SoukService } from "../services/soukService";
 import { getDeviceId, getDeviceName } from "../services/identity";
 
@@ -562,7 +561,7 @@ export default function SoukMarketplace() {
   });
   const [kycStatus, setKycStatus] = useState<any>(null);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
@@ -656,7 +655,11 @@ export default function SoukMarketplace() {
 
   const toggleLike = (product: Product) => {
     const next = new Set(Array.from(likedIds));
-    next.has(product.id.toString()) ? next.delete(product.id.toString()) : next.add(product.id.toString());
+    if (next.has(product.id.toString())) {
+      next.delete(product.id.toString());
+    } else {
+      next.add(product.id.toString());
+    }
     setLikedIds(next);
     try { localStorage.setItem("souk_saved", JSON.stringify(Array.from(next))); } catch { /* ignore */ }
     showToast(next.has(product.id.toString()) ? "Added to Saved Finds" : "Removed from Saved");

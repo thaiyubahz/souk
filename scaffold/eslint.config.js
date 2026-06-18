@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'android', 'ios', 'node_modules', 'coverage', 'playwright-report', 'test-results']),
+  globalIgnores(['dist', 'android', 'ios', 'node_modules', 'coverage', 'playwright-report', 'test-results', 'src/dataconnect-generated']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
