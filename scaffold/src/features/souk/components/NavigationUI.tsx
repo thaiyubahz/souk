@@ -1,4 +1,4 @@
-import { Storefront, MapPin, NavigationArrow, MagnifyingGlass, ChatCenteredText, Heart, User, House } from "@phosphor-icons/react";
+import { Storefront, MapPin, NavigationArrow, MagnifyingGlass, ChatCenteredText, Heart, User, House, Plus } from "@phosphor-icons/react";
 import { COLORS } from "./Theme"; // Ensure COLORS is imported
 
 export function Navbar({ isMobile, userCity, setUserCity, setNearMeOnly, search, setSearch, setPage, showLocationList, setShowLocationList, detectLocation, likedIds }: any) {
@@ -45,6 +45,9 @@ export function Navbar({ isMobile, userCity, setUserCity, setNearMeOnly, search,
             )}
 
             <div style={{ marginLeft: "auto", display: isMobile ? "none" : "flex", gap: 12, alignItems: "center" }}>
+                <button onClick={() => setPage("become-seller")} style={{ background: COLORS.gold, border: "none", color: "#101a2a", borderRadius: 10, height: 40, padding: "0 16px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 800, fontSize: 13 }}>
+                    <Plus size={18} weight="bold" /> Sell
+                </button>
                 <button onClick={() => setPage("messages")} style={{ background: COLORS.bgGlass, border: `1px solid ${COLORS.border}`, color: COLORS.gold, borderRadius: 10, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <ChatCenteredText size={20} />
                 </button>

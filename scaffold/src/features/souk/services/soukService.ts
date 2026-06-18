@@ -1,19 +1,19 @@
 import { db, isFirebaseConfigured } from "@/config/firebase.config";
 import {
-    collection, doc, setDoc, addDoc,
+    collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc,
     onSnapshot, query, where, orderBy, serverTimestamp,
     limit, updateDoc, type Unsubscribe,
 } from "firebase/firestore";
 import type { Product } from "../components/Types";
+import { getDeviceId } from "./identity";
 
 export interface BecomeSellerData {
     fullName: string;
-    idType: string;
-    idNumber: string;
     shopName: string;
     contactPhone: string;
     shopAddress: string;
     productName: string;
+    productDescription: string;
     productCategory: string;
     productPrice: string;
     mode: "sale" | "rent";
@@ -92,6 +92,30 @@ async function fileToCompressedDataUrl(
     return canvas.toDataURL("image/jpeg", quality);
 }
 
+// Work out the next tidy listing id (lst_1007, lst_1008, …) by finding the
+// highest existing "lst_<number>" and adding one — so Firestore documents get
+// readable ids instead of random strings. (Fine for a prototype; a production
+// app would use a counter document + transaction to avoid two uploads racing
+// for the same number.)
+async function nextListingId(): Promise<string> {
+    let max = 1000;
+    if (db) {
+        try {
+            const snap = await getDocs(collection(db, "products"));
+            snap.forEach((d) => {
+                const m = d.id.match(/^lst_(\d+)$/);
+                if (m) {
+                    const n = parseInt(m[1], 10);
+                    if (n > max) max = n;
+                }
+            });
+        } catch {
+            /* if the read fails, fall back to max+1 */
+        }
+    }
+    return `lst_${max + 1}`;
+}
+
 export const SoukService = {
     /**
      * Listens to the products collection in real-time.
@@ -142,6 +166,7 @@ export const SoukService = {
                     description: data.description || "",
                     sellerPhone: data.sellerPhone || "",
                     sellerId: data.sellerId || "",
+                    ownerDeviceId: data.ownerDeviceId || "",
                 } as Product);
             });
             callback(prods);
@@ -155,13 +180,13 @@ export const SoukService = {
      * Firestore document (free — no paid Storage service), and a basic halal /
      * prohibited-items check runs before anything is written.
      */
-    establishShop: async (data: BecomeSellerData, _idFile: File | null, productFile: File | null) => {
+    establishShop: async (data: BecomeSellerData, productFile: File | null) => {
         if (!isFirebaseConfigured || !db) {
             throw new Error("Firebase is not configured (.env). Cannot save the listing.");
         }
 
         // Halal guardrail — reject prohibited items before writing anything.
-        const haystack = `${data.productName} ${data.productCategory} ${data.shopName}`.toLowerCase();
+        const haystack = `${data.productName} ${data.productDescription} ${data.productCategory} ${data.shopName}`.toLowerCase();
         const banned = PROHIBITED_TERMS.find((term) => haystack.includes(term));
         if (banned) {
             throw new Error(
@@ -197,26 +222,114 @@ export const SoukService = {
         }
 
         // The listing itself — shaped to match what the Souk product feed reads.
-        const productRef = await addDoc(collection(db, "products"), {
+        // Use a tidy sequential id (lst_1007, …) instead of a random string.
+        const newId = await nextListingId();
+        await setDoc(doc(db, "products", newId), {
             name: data.productName,
             category: data.productCategory,
             price: parsedPrice,
             type: data.mode,
             sellerId,
+            ownerDeviceId: getDeviceId(),
             seller: data.shopName,
             sellerPhone: data.contactPhone,
             location: data.shopAddress.split(",").pop()?.trim() || "Local",
             rating: 5,
             reviews: 0,
             unit: data.mode === "rent" ? "per day" : "per item",
-            description: data.productName,
+            description: data.productDescription?.trim() || data.productName,
             img,
             tags: ["community", "ethical"],
             badge: "New Seller",
             createdAt,
         });
 
-        return { sellerId, productId: productRef.id };
+        return { sellerId, productId: newId };
+    },
+
+    /** Delete a listing by id. (Prototype: open; production restricts to the owner.) */
+    deleteListing: async (id: string) => {
+        if (!isFirebaseConfigured || !db) return;
+        await deleteDoc(doc(db, "products", id));
+    },
+
+    /** Update a listing's editable fields (name / price). */
+    updateListing: async (id: string, patch: { name?: string; price?: number }) => {
+        if (!isFirebaseConfigured || !db) return;
+        await updateDoc(doc(db, "products", id), patch);
+    },
+
+    /**
+     * Rate a product (1–5 stars) and return the new average.
+     *
+     * Prototype-simple: we DON'T store who rated. We just keep the product's
+     * average (`rating`) and count (`reviews`) and adjust those two numbers.
+     * "One rating per device" is enforced in the browser (localStorage) by the
+     * caller — nothing extra is saved in Firebase.
+     *
+     * `previousStars` lets a device CHANGE its mind: pass the stars it gave
+     * before (0 if this is a first rating). When changing, the count stays the
+     * same and we just swap the old stars for the new ones in the average.
+     */
+    rateProduct: async (productId: string, stars: number, previousStars = 0) => {
+        if (!isFirebaseConfigured || !db) return null;
+        const ref = doc(db, "products", productId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        const oldAvg = typeof data.rating === "number" ? data.rating : 0;
+        const oldCount = typeof data.reviews === "number" ? data.reviews : 0;
+
+        let newCount: number;
+        let newAvg: number;
+        if (previousStars > 0 && oldCount > 0) {
+            // CHANGING an existing rating: count is unchanged; remove the old
+            // stars from the total and add the new ones.
+            newCount = oldCount;
+            newAvg = (oldAvg * oldCount - previousStars + stars) / newCount;
+        } else {
+            // FIRST rating from this device: one more vote in the average.
+            newCount = oldCount + 1;
+            newAvg = (oldAvg * oldCount + stars) / newCount;
+        }
+        newAvg = Math.round(newAvg * 10) / 10; // keep 1 decimal place
+        await updateDoc(ref, { rating: newAvg, reviews: newCount });
+        return { rating: newAvg, reviews: newCount };
+    },
+
+    /**
+     * Remove a device's rating from a product and return the new average.
+     *
+     * `previousStars` is the stars this device gave before (we know it from the
+     * browser's localStorage). We take that vote back out: the count drops by
+     * one and the stars are removed from the average. If it was the only rating,
+     * the product goes back to 0 / no ratings.
+     */
+    removeRating: async (productId: string, previousStars: number) => {
+        if (!isFirebaseConfigured || !db) return null;
+        const ref = doc(db, "products", productId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        const oldAvg = typeof data.rating === "number" ? data.rating : 0;
+        const oldCount = typeof data.reviews === "number" ? data.reviews : 0;
+        if (previousStars <= 0 || oldCount <= 0) {
+            return { rating: oldAvg, reviews: oldCount }; // nothing to remove
+        }
+        const newCount = oldCount - 1;
+        // If no ratings remain, reset to 0; otherwise re-average without this vote.
+        const newAvg = newCount > 0
+            ? Math.round(((oldAvg * oldCount - previousStars) / newCount) * 10) / 10
+            : 0;
+        await updateDoc(ref, { rating: newAvg, reviews: newCount });
+        return { rating: newAvg, reviews: newCount };
+    },
+
+    /** Fetch a single seller's profile by id. */
+    getSeller: async (id: string) => {
+        if (!isFirebaseConfigured || !db) return null;
+        const snap = await getDoc(doc(db, "sellers", id));
+        return snap.exists() ? { id: snap.id, ...snap.data() } : null;
     },
 
     /**
@@ -234,13 +347,16 @@ export const SoukService = {
      */
     subscribeToChats: (uid: string, callback: (chats: any[]) => void): Unsubscribe => {
         if (!isFirebaseConfigured || !db) return () => { };
+        // No orderBy here on purpose: combining array-contains with orderBy needs
+        // a composite index in Firestore. We sort newest-first on the client.
         const q = query(
             collection(db, "chats"),
-            where("participants", "array-contains", uid),
-            orderBy("updatedAt", "desc")
+            where("participants", "array-contains", uid)
         );
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            const chats = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+            chats.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+            callback(chats);
         });
     },
 

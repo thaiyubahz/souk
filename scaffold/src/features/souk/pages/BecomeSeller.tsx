@@ -6,21 +6,19 @@ import {
     ShieldCheck,
     Archive, HandPointing, HandCoins, Check, Image as ImageIcon
 } from "@phosphor-icons/react";
-import { auth, isFirebaseConfigured } from "@/config/firebase.config";
+import { isFirebaseConfigured } from "@/config/firebase.config";
 import { SoukService } from "../services/soukService";
 import { COLORS } from "../components/SoukCommon";
 
 interface FormData {
-    // KYC
     fullName: string;
-    idType: string;
-    idNumber: string;
     // Seller Details
     shopName: string;
     contactPhone: string;
     shopAddress: string;
     // Product Details
     productName: string;
+    productDescription: string;
     productCategory: string;
     productPrice: string;
     mode: "sale" | "rent";
@@ -28,7 +26,6 @@ interface FormData {
 
 export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () => void, onCancel: () => void }) {
     const [step, setStep] = useState(0);
-    const [idFile, setIdFile] = useState<File | null>(null);
     const [productFile, setProductFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -42,13 +39,12 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
 
     const [form, setForm] = useState<FormData>({
         fullName: "",
-        idType: "Aadhar",
-        idNumber: "",
         shopName: "",
         contactPhone: "",
         shopAddress: "",
         productName: "",
-        productCategory: "clothes",
+        productDescription: "",
+        productCategory: "products",
         productPrice: "",
         mode: "sale",
     });
@@ -127,11 +123,11 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
                             <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.goldDim, color: COLORS.gold, display: "flex", alignItems: "center", justifyContent: "center" }}>
                                 <ShieldCheck size={24} weight="duotone" />
                             </div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>Step 1: Identity & Amanah Verification (KYC)</div>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>Step 1: Your Name</div>
                         </div>
 
                         <div>
-                            <label style={labelStyle}>Full Name (As per ID)</label>
+                            <label style={labelStyle}>Full Name</label>
                             <input
                                 style={inputStyle}
                                 placeholder="Ex: Rania Ahmed"
@@ -140,61 +136,8 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
                             />
                         </div>
 
-                        <div>
-                            <label style={labelStyle}>Identity Proof Type</label>
-                            <select
-                                style={{ ...inputStyle, appearance: "none" }}
-                                value={form.idType}
-                                onChange={e => setForm({ ...form, idType: e.target.value })}
-                            >
-                                <option value="Aadhar">Aadhar Card</option>
-                                <option value="PAN">PAN Card</option>
-                                <option value="VoterID">Voter ID</option>
-                                <option value="Passport">Passport</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label style={labelStyle}>{form.idType} Number</label>
-                            <input
-                                style={inputStyle}
-                                placeholder={`Enter your ${form.idType} number`}
-                                value={form.idNumber}
-                                onChange={e => setForm({ ...form, idNumber: e.target.value })}
-                            />
-                        </div>
-
-                        <div
-                            onClick={() => document.getElementById('id-upload')?.click()}
-                            style={{ padding: "20px", border: `2px dashed ${idFile ? COLORS.gold : COLORS.border}`, borderRadius: 16, textAlign: "center", background: idFile ? COLORS.goldDim : "rgba(255,255,255,0.01)", cursor: "pointer", transition: "all 0.2s" }}
-                        >
-                            <input
-                                id="id-upload"
-                                type="file"
-                                accept=".pdf,.png,.jpg,.jpeg"
-                                style={{ display: "none" }}
-                                onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file && file.size <= 5 * 1024 * 1024) setIdFile(file);
-                                    else if (file) alert("File must be under 5MB");
-                                }}
-                            />
-                            <ImageIcon size={32} color={COLORS.gold} style={{ marginBottom: 12 }} /> {/* Changed to ImageIcon */}
-                            {idFile ? (
-                                <>
-                                    <div style={{ fontSize: 13, color: COLORS.gold, fontWeight: 600 }}>{idFile.name}</div>
-                                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>Click to change file</div>
-                                </>
-                            ) : (
-                                <>
-                                    <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>Upload ID Document</div>
-                                    <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>PDF, PNG, or JPG (Max 5MB)</div>
-                                </>
-                            )}
-                        </div>
-
-                        <button style={buttonStyle} onClick={nextStep} disabled={!form.fullName || !form.idNumber}>
-                            Verify Identity <CaretRight size={18} weight="bold" />
+                        <button style={buttonStyle} onClick={nextStep} disabled={!form.fullName}>
+                            Continue <CaretRight size={18} weight="bold" />
                         </button>
                     </div>
                 )}
@@ -269,6 +212,16 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
                         </div>
 
                         <div>
+                            <label style={labelStyle}>Description</label>
+                            <textarea
+                                style={{ ...inputStyle, minHeight: 100, resize: "none" }}
+                                placeholder="Describe your product — what it is, condition, what makes it special"
+                                value={form.productDescription}
+                                onChange={e => setForm({ ...form, productDescription: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
                             <label style={labelStyle}>Product Photo</label>
                             <div
                                 onClick={() => document.getElementById('product-upload')?.click()}
@@ -308,12 +261,15 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
                                     value={form.productCategory}
                                     onChange={e => setForm({ ...form, productCategory: e.target.value })}
                                 >
-                                    <option value="clothes">Modest Wear</option>
-                                    <option value="electronics">Ethical Tech</option>
-                                    <option value="rent">Amanah Rentals</option>
-                                    <option value="handmade">Artisan Crafts</option>
-                                    <option value="health">Wellness & Tibb</option>
-                                    <option value="services">Community Services</option>
+                                    <option value="products">Products</option>
+                                    <option value="services">Services</option>
+                                    <option value="freelancers">Freelancers</option>
+                                    <option value="jobs">Jobs</option>
+                                    <option value="rentals">Rentals</option>
+                                    <option value="giveaways">Giveaways</option>
+                                    <option value="islamic">Islamic</option>
+                                    <option value="local">Local</option>
+                                    <option value="digital">Digital</option>
                                 </select>
                             </div>
                             <div style={{ flex: 1 }}>
@@ -377,7 +333,7 @@ export default function BecomeSeller({ onComplete, onCancel }: { onComplete: () 
                                     }
                                     setSubmitting(true);
                                     try {
-                                        await SoukService.establishShop(form, idFile, productFile);
+                                        await SoukService.establishShop(form, productFile);
                                         setTimeout(() => {
                                             setSubmitting(false);
                                             onComplete();

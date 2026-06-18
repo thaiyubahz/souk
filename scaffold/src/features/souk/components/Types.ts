@@ -15,5 +15,6 @@ export interface Product {
     description: string;
     sellerPhone: string;
     sellerId?: string;
+    ownerDeviceId?: string;
     qty?: number;
 }

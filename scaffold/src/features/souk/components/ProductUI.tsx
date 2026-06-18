@@ -5,6 +5,7 @@ import { db } from "@/config/firebase.config";
 import { COLORS } from "./Theme";
 import type { Product } from "./Types";
 import { Badge, StarRating } from "./UIAtoms";
+import { SoukService } from "../services/soukService";
 import { MapPlaceholder } from "./LayoutUI"; // MapPlaceholder is more of a layout/section component
 
 interface ProductCardProps { // This interface is specific to ProductCard, keep it here
@@ -55,7 +56,7 @@ export function ProductCard({ product, onView, onLike, isLiked }: ProductCardPro
 
             <div style={{
                 background: "linear-gradient(135deg, rgba(212,168,83,0.03), rgba(0,0,0,0.1))",
-                height: 140,
+                height: 200,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -106,9 +107,63 @@ interface ProductDetailProps {
     showToast: (m: string) => void;
     setSelectedChatId: (id: string | null) => void;
     isMobile: boolean;
+    onViewSeller?: (sellerId: string) => void;
 }
 
-export function ProductDetail({ product, onBack, user, setPage, showToast, setSelectedChatId, isMobile }: ProductDetailProps) {
+export function ProductDetail({ product, onBack, user, setPage, showToast, setSelectedChatId, isMobile, onViewSeller }: ProductDetailProps) {
+    // "Rate once per device" — remembered ONLY in the browser (localStorage),
+    // so nothing extra is stored in Firebase. We just bump the product's
+    // average on screen + in Firestore.
+    const RATED_KEY = "souk_rated";
+    const readRated = (): Record<string, number> => {
+        try { return JSON.parse(localStorage.getItem(RATED_KEY) || "{}"); } catch { return {}; }
+    };
+
+    const [myRating, setMyRating] = useState<number>(() => readRated()[product.id] || 0);
+    const [hoverStar, setHoverStar] = useState(0);
+    const [avg, setAvg] = useState(product.rating);
+    const [count, setCount] = useState(product.reviews);
+
+    const handleRate = async (stars: number) => {
+        if (stars === myRating) return; // tapped the same star — nothing to change
+        try {
+            // Pass the device's previous stars so a re-tap CHANGES the rating
+            // (instead of counting as a brand-new vote).
+            const res = await SoukService.rateProduct(product.id, stars, myRating);
+            if (res) { setAvg(res.rating); setCount(res.reviews); }
+            const map = readRated();
+            map[product.id] = stars;
+            localStorage.setItem(RATED_KEY, JSON.stringify(map));
+            const changed = myRating > 0;
+            setMyRating(stars);
+            showToast(
+                changed
+                    ? `Updated — you now rate this ${stars} ${stars === 1 ? "star" : "stars"}.`
+                    : `Thanks! You rated this ${stars} ${stars === 1 ? "star" : "stars"}.`
+            );
+        } catch (e) {
+            console.error(e);
+            showToast("Sorry — could not save your rating.");
+        }
+    };
+
+    const handleRemoveRating = async () => {
+        if (!myRating) return;
+        try {
+            const res = await SoukService.removeRating(product.id, myRating);
+            if (res) { setAvg(res.rating); setCount(res.reviews); }
+            const map = readRated();
+            delete map[product.id]; // forget this device's rating
+            localStorage.setItem(RATED_KEY, JSON.stringify(map));
+            setMyRating(0);
+            setHoverStar(0);
+            showToast("Your rating was removed.");
+        } catch (e) {
+            console.error(e);
+            showToast("Sorry — could not remove your rating.");
+        }
+    };
+
     return (
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px" : "40px 24px" }}>
             <button
@@ -204,9 +259,9 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
 
                     <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: isMobile ? 16 : 24 }}>
                         <div style={{ background: COLORS.success, color: "#fff", padding: "4px 8px", borderRadius: 6, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                            {product.rating} <Star size={14} weight="fill" />
+                            {avg} <Star size={14} weight="fill" />
                         </div>
-                        <span style={{ color: COLORS.textDim, fontSize: 13 }}>{product.reviews.toLocaleString()} Ratings & Reviews</span>
+                        <span style={{ color: COLORS.textDim, fontSize: 13 }}>{count.toLocaleString()} Ratings & Reviews</span>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: isMobile ? 24 : 32 }}>
@@ -230,9 +285,47 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
                                 <div style={{ fontWeight: 700, color: COLORS.goldLight }}>{product.seller}</div>
                                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>{product.location}</div>
                             </div>
-                            <button style={{ background: "none", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            <button
+                                onClick={() => product.sellerId && onViewSeller?.(product.sellerId)}
+                                style={{ background: "none", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                                 View Store
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Tap the stars to rate (once per device). */}
+                    <div style={{ marginBottom: 32 }}>
+                        <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                            {myRating ? "Your Rating (tap a star to change)" : "Rate this product"}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {[1, 2, 3, 4, 5].map((s) => {
+                                const active = (hoverStar || myRating) >= s;
+                                return (
+                                    <button
+                                        key={s}
+                                        onClick={() => handleRate(s)}
+                                        onMouseEnter={() => setHoverStar(s)}
+                                        onMouseLeave={() => setHoverStar(0)}
+                                        title={`Rate ${s} star${s === 1 ? "" : "s"}`}
+                                        style={{ background: "none", border: "none", padding: 0, display: "flex", cursor: "pointer" }}
+                                    >
+                                        <Star size={28} weight={active ? "fill" : "regular"} color={active ? COLORS.gold : COLORS.textDim} />
+                                    </button>
+                                );
+                            })}
+                            {myRating ? (
+                                <>
+                                    <span style={{ fontSize: 12, color: COLORS.textMuted, marginLeft: 8 }}>You rated this {myRating}/5 ✓</span>
+                                    <button
+                                        onClick={handleRemoveRating}
+                                        title="Remove your rating"
+                                        style={{ background: "none", border: "none", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", marginLeft: 4, textDecoration: "underline", padding: 0 }}
+                                    >
+                                        Remove
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
                     </div>
 

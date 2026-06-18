@@ -1,38 +1,34 @@
 import { useEffect, useState } from "react";
 import {
-  Storefront, User, MagnifyingGlass, MapPin, Check, Heart, CaretRight, Sparkle, Dress, Monitor, Key, Palette, NavigationArrow, Buildings, Car, BookOpen, Users, Couch, FirstAid, Briefcase, ChatCenteredText, ShieldCheck, PaperPlaneTilt, Envelope, Lock, House
+  Storefront, User, MagnifyingGlass, MapPin, Check, Heart, CaretRight, Sparkle, Key, BookOpen, Briefcase, ChatCenteredText, ShieldCheck, PaperPlaneTilt, Envelope, Lock,
+  Package, Gear, Laptop, Gift, DownloadSimple, Plus, TrendUp, Leaf
 } from "@phosphor-icons/react";
 import BecomeSeller from "./BecomeSeller";
-import { COLORS, type Product, ProductCard, ProductDetail, Navbar, BottomNav, Footer } from "../components/SoukCommon";
+import { COLORS, type Product, ProductCard, ProductDetail, Navbar, BottomNav, Footer, StarRating } from "../components/SoukCommon";
 import { auth, db, isFirebaseConfigured } from "@/config/firebase.config";
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { collection, query, onSnapshot, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { SoukService } from "../services/soukService";
+import { getDeviceId, getDeviceName } from "../services/identity";
 
+// Categories match the real data (mock-data/categories.json + seeded products),
+// so filtering actually works. The `id` must equal the product's `category`.
 const CATEGORIES = [
   { id: "all", label: "All", icon: Storefront },
-  { id: "clothes", label: "Modest Wear", icon: Dress },
-  { id: "electronics", label: "Ethical Tech", icon: Monitor },
-  { id: "rent", label: "Amanah Rentals", icon: Key },
-  { id: "handmade", label: "Artisan Crafts", icon: Palette },
-  { id: "property", label: "Halal Property", icon: Buildings },
-  { id: "vehicles", label: "Ethical Rides", icon: Car },
-  { id: "books", label: "Islamic Books", icon: BookOpen },
-  { id: "community", label: "Meeting Areas", icon: Users },
-  { id: "furniture", label: "Modest Home", icon: Couch },
-  { id: "health", label: "Wellness & Tibb", icon: FirstAid },
-  { id: "services", label: "Community Services", icon: Briefcase },
-];
-
-const TESTIMONIALS = [
-  { name: "Rania Ahmed", city: "Chennai", text: "Found local homemade meals easily. The quality is exceptional.", avatar: "R" },
-  { name: "Karthik S", city: "Bangalore", text: "Professional rental service. Smooth process from start to finish.", avatar: "K" },
-  { name: "Fatima Noor", city: "Chennai", text: "Helping my small business reach more customers every day.", avatar: "F" },
+  { id: "products", label: "Products", icon: Package },
+  { id: "services", label: "Services", icon: Gear },
+  { id: "freelancers", label: "Freelancers", icon: Laptop },
+  { id: "jobs", label: "Jobs", icon: Briefcase },
+  { id: "rentals", label: "Rentals", icon: Key },
+  { id: "giveaways", label: "Giveaways", icon: Gift },
+  { id: "islamic", label: "Islamic", icon: BookOpen },
+  { id: "local", label: "Local", icon: Storefront },
+  { id: "digital", label: "Digital", icon: DownloadSimple },
 ];
 
 function Hero({ isMobile, search, setSearch }: { isMobile: boolean, search: string, setSearch: (s: string) => void }) {
   return (
-    <div style={{ padding: "64px 24px 48px", maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
+    <div style={{ padding: "64px 24px 48px", maxWidth: "100%", margin: "0 auto", textAlign: "center" }}>
       {isMobile && (
         <div style={{ position: "relative", marginBottom: 32 }}>
           <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: COLORS.textDim, display: "flex" }}>
@@ -46,14 +42,14 @@ function Hero({ isMobile, search, setSearch }: { isMobile: boolean, search: stri
           />
         </div>
       )}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: COLORS.goldDim, border: `1px solid ${COLORS.border}`, borderRadius: 100, padding: "6px 16px", fontSize: 10, color: COLORS.gold, marginBottom: 24, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-        Ethical & Halal Commerce
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(74,222,128,0.10)", border: "1px solid rgba(74,222,128,0.30)", borderRadius: 100, padding: "6px 16px", fontSize: 11, color: "#4ADE80", marginBottom: 24, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+        <Leaf size={13} weight="fill" /> Ethical &amp; Halal Commerce
       </div>
-      <h1 style={{ fontSize: "clamp(32px, 6vw, 48px)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-1px", color: COLORS.text }}>
-        Empowering community with <span style={{ color: COLORS.gold }}>Barakah.</span>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(40px, 7vw, 72px)", fontWeight: 800, lineHeight: 1.05, margin: "0 0 20px", letterSpacing: "-0.5px", color: COLORS.text }}>
+        Empowering community with<br /><span style={{ color: COLORS.gold }}>Barakah.</span>
       </h1>
-      <p style={{ color: COLORS.textMuted, fontSize: 15, lineHeight: 1.6, maxWidth: 500, margin: "0 auto 40px" }}>
-        Discover Halal dining, Modest fashion, and Ethical rentals from your trusted neighbours.
+      <p style={{ color: COLORS.textMuted, fontSize: 16, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 40px" }}>
+        Buy, sell, and connect with your community — ethically, transparently, and with trust.
       </p>
     </div>
   );
@@ -61,7 +57,7 @@ function Hero({ isMobile, search, setSearch }: { isMobile: boolean, search: stri
 
 function CategoryBar({ activeCategory, setActiveCategory }: any) {
   return (
-    <div style={{ padding: "0 24px 32px", display: "flex", gap: 10, overflowX: "auto", maxWidth: 1100, margin: "0 auto", scrollbarWidth: "none" }}>
+    <div style={{ padding: "0 24px 32px", display: "flex", gap: 10, overflowX: "auto", maxWidth: "100%", margin: "0 auto", scrollbarWidth: "none" }}>
       {CATEGORIES.map(cat => {
         const Icon = cat.icon;
         return (
@@ -88,6 +84,26 @@ function CategoryBar({ activeCategory, setActiveCategory }: any) {
   );
 }
 
+// A horizontal scrolling row of products (used for New / Trending / Giveaways).
+function Rail({ title, icon, items, onView, onLike, likedIds }: any) {
+  if (!items.length) return null;
+  return (
+    <div style={{ maxWidth: "100%", margin: "0 auto", padding: "0 24px 28px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        {icon}
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, margin: 0 }}>{title}</h3>
+      </div>
+      <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+        {items.map((p: Product) => (
+          <div key={p.id} style={{ width: 260, flexShrink: 0 }}>
+            <ProductCard product={p} onView={onView} onLike={onLike} isLiked={likedIds.has(p.id.toString())} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProductGrid({ filtered, setSelectedProduct, setPage, toggleLike, likedIds, setSearch, setActiveCategory }: any) {
   if (filtered.length === 0) {
     return (
@@ -100,8 +116,12 @@ function ProductGrid({ filtered, setSelectedProduct, setPage, toggleLike, likedI
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 48px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+    <div style={{ maxWidth: "100%", margin: "0 auto", padding: "0 24px 48px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, margin: 0 }}>Browse the Souk</h2>
+        <span style={{ fontSize: 12, color: COLORS.textMuted }}>{filtered.length} item{filtered.length === 1 ? "" : "s"}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, 260px)", justifyContent: "center", gap: 16 }}>
         {filtered.map((p: Product) => (
           <ProductCard
             key={p.id}
@@ -116,37 +136,9 @@ function ProductGrid({ filtered, setSelectedProduct, setPage, toggleLike, likedI
   );
 }
 
-function TestimonialsSection() {
-  return (
-    <div style={{ background: COLORS.bgCard, borderTop: `0.5px solid ${COLORS.border}`, borderBottom: `0.5px solid ${COLORS.border}`, padding: "48px 24px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 11, color: COLORS.gold, letterSpacing: "0.1em", fontWeight: 600, textTransform: "uppercase", marginBottom: 8 }}>Tayyib Experiences</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>Amanah & Community Trust</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} style={{ background: COLORS.bgGlass, border: `0.5px solid ${COLORS.border}`, borderRadius: 14, padding: 20 }}>
-              <div style={{ color: COLORS.gold, fontSize: 14, marginBottom: 10 }}>★★★★★</div>
-              <div style={{ color: COLORS.text, fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>"{t.text}"</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.gold}, ${COLORS.accent})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#000" }}>{t.avatar}</div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>📍 {t.city}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SavedView({ likedIds, allProducts, toggleLike, setSelectedProduct, setPage }: any) {
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+    <div style={{ maxWidth: "100%", margin: "0 auto", padding: "40px 24px" }}>
       <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Your Saved Finds</h2>
       {likedIds.size === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 0", color: COLORS.textDim }}>
@@ -155,7 +147,7 @@ function SavedView({ likedIds, allProducts, toggleLike, setSelectedProduct, setP
           <button onClick={() => setPage("home")} style={{ marginTop: 16, background: COLORS.gold, color: "#000", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 700, cursor: "pointer" }}>Back to Home</button>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, 260px)", justifyContent: "center", gap: 16 }}>
           {allProducts.filter((p: Product) => likedIds.has(p.id.toString())).map((p: Product) => (
             <ProductCard
               key={p.id}
@@ -164,6 +156,158 @@ function SavedView({ likedIds, allProducts, toggleLike, setSelectedProduct, setP
               isLiked={true}
               onView={(p) => { setSelectedProduct(p); setPage("product-detail"); }}
             />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SellerProfileView({ sellerId, allProducts, setSelectedProduct, setPage, toggleLike, likedIds }: any) {
+  const [seller, setSeller] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    SoukService.getSeller(sellerId).then((s) => { if (active) { setSeller(s); setLoading(false); } });
+    return () => { active = false; };
+  }, [sellerId]);
+
+  const theirProducts = allProducts.filter((p: Product) => p.sellerId === sellerId);
+
+  const badgeStyles: any = {
+    trusted: { bg: "rgba(123,158,137,0.12)", color: COLORS.success, label: "Trusted Seller" },
+    verified: { bg: COLORS.goldDim, color: COLORS.gold, label: "Verified" },
+    new: { bg: "rgba(255,255,255,0.05)", color: COLORS.textMuted, label: "New Seller" },
+  };
+  const badge = seller?.trustBadge ? (badgeStyles[seller.trustBadge] || badgeStyles.new) : null;
+  const displayName = seller?.name || seller?.shopName || "Community Seller";
+  const avatar: string | undefined = seller?.avatar;
+  const rating = seller?.ratingAvg || seller?.rating;
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px" }}>
+      <button onClick={() => setPage("home")} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 12, marginBottom: 24, fontWeight: 600 }}>← Back</button>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>Loading…</div>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 20, alignItems: "center", background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 20, padding: 24, marginBottom: 24, flexWrap: "wrap" }}>
+            <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", background: `linear-gradient(135deg, ${COLORS.gold}, ${COLORS.accent})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {avatar && avatar.startsWith("http") ? (
+                <img src={avatar} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: 32, fontWeight: 800, color: "#101a2a" }}>{displayName.charAt(0)}</span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <h2 style={{ fontSize: 24, fontWeight: 800, color: COLORS.text, margin: 0 }}>{displayName}</h2>
+                {badge && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: badge.bg, color: badge.color, border: `1px solid ${COLORS.border}`, borderRadius: 100, padding: "4px 12px", fontSize: 11, fontWeight: 700 }}>
+                    <ShieldCheck size={14} weight="fill" /> {badge.label}
+                  </span>
+                )}
+              </div>
+              {seller?.handle && <div style={{ color: COLORS.gold, fontSize: 13, marginTop: 4 }}>{seller.handle}</div>}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap", color: COLORS.textMuted, fontSize: 13 }}>
+                {seller?.location && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={14} /> {seller.location}</span>}
+                {rating ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <StarRating rating={rating} />
+                    {seller?.ratingsCount ? <span>({seller.ratingsCount} reviews)</span> : null}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {seller?.bio && <p style={{ color: COLORS.textMuted, fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>{seller.bio}</p>}
+          {seller?.responseTime && <div style={{ color: COLORS.textDim, fontSize: 12, marginBottom: 32 }}>⏱ {seller.responseTime}</div>}
+
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: "16px 0" }}>Listings ({theirProducts.length})</h3>
+          {theirProducts.length === 0 ? (
+            <div style={{ color: COLORS.textDim, padding: "24px 0" }}>No active listings.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, 260px)", justifyContent: "center", gap: 16 }}>
+              {theirProducts.map((p: Product) => (
+                <ProductCard key={p.id} product={p} onView={(prod) => { setSelectedProduct(prod); setPage("product-detail"); window.scrollTo(0, 0); }} onLike={toggleLike} isLiked={likedIds.has(p.id.toString())} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MyListingsView({ allProducts, setSelectedProduct, setPage, showToast }: any) {
+  const myId = getDeviceId();
+  const mine = allProducts.filter((p: Product) => p.ownerDeviceId === myId);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+
+  const startEdit = (p: Product) => { setEditingId(p.id.toString()); setEditName(p.name); setEditPrice(String(p.price)); };
+  const saveEdit = async (p: Product) => {
+    try {
+      await SoukService.updateListing(p.id.toString(), { name: editName.trim(), price: parseFloat(editPrice) || 0 });
+      showToast("Listing updated");
+      setEditingId(null);
+    } catch { showToast("Couldn't update — re-publish the rules?"); }
+  };
+  const remove = async (p: Product) => {
+    try { await SoukService.deleteListing(p.id.toString()); showToast("Listing deleted"); }
+    catch { showToast("Couldn't delete — re-publish the rules?"); }
+  };
+
+  const editInput = { background: "rgba(255,255,255,0.03)", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, outline: "none" } as const;
+
+  return (
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 24px" }}>
+      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>My Listings</h2>
+      {mine.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 0", color: COLORS.textDim }}>
+          <Storefront size={48} weight="thin" style={{ marginBottom: 16 }} />
+          <div>You haven't listed anything yet.</div>
+          <button onClick={() => setPage("become-seller")} style={{ marginTop: 16, background: COLORS.gold, color: "#101a2a", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 700, cursor: "pointer" }}>Sell something</button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {mine.map((p: Product) => (
+            <div key={p.id} style={{ display: "flex", gap: 16, padding: 16, borderRadius: 16, background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, alignItems: "center" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", flexShrink: 0, background: COLORS.bgGlass, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {p.img && (p.img.startsWith("http") || p.img.startsWith("data:")) ? (
+                  <img src={p.img} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (<Sparkle size={28} color={COLORS.gold} />)}
+              </div>
+              {editingId === p.id.toString() ? (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input value={editName} onChange={e => setEditName(e.target.value)} style={editInput} />
+                  <input value={editPrice} onChange={e => setEditPrice(e.target.value)} type="number" style={{ ...editInput, width: 120 }} />
+                </div>
+              ) : (
+                <div style={{ flex: 1, cursor: "pointer" }} onClick={() => { setSelectedProduct(p); setPage("product-detail"); window.scrollTo(0, 0); }}>
+                  <div style={{ fontWeight: 700, color: COLORS.text }}>{p.name}</div>
+                  <div style={{ fontSize: 13, color: COLORS.goldLight, marginTop: 4 }}>₹{p.price.toLocaleString()}</div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                {editingId === p.id.toString() ? (
+                  <>
+                    <button onClick={() => saveEdit(p)} style={{ background: COLORS.gold, color: "#101a2a", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>Save</button>
+                    <button onClick={() => setEditingId(null)} style={{ background: "transparent", color: COLORS.textMuted, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => startEdit(p)} style={{ background: COLORS.bgGlass, color: COLORS.gold, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}>Edit</button>
+                    <button onClick={() => remove(p)} style={{ background: "rgba(255,77,79,0.08)", color: "#ff6b6e", border: "1px solid rgba(255,77,79,0.3)", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}>Delete</button>
+                  </>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -317,6 +461,7 @@ function AccountView({ user, kycStatus, setPage, showToast }: any) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {[
+          { icon: Storefront, title: "My Listings", desc: "Items you're selling", action: () => setPage("my-listings") },
           { icon: ChatCenteredText, title: "Connect", desc: "Recent inquiries", action: () => setPage("messages") },
           { icon: Sparkle, title: "Saved Finds", desc: "Your curated list", action: () => setPage("saved") },
         ].map((item) => (
@@ -406,11 +551,20 @@ export default function SoukMarketplace() {
   const [showLocationList, setShowLocationList] = useState(false);
   const [isMobile, setIsMobile] = useState(false); // Default to false for safe initial render
   const [user, setUser] = useState<any>(null);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [likedIds, setLikedIds] = useState<Set<string>>(() => {
+    // Load previously-saved items for this browser so they survive a refresh.
+    try {
+      const raw = localStorage.getItem("souk_saved");
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
   const [kycStatus, setKycStatus] = useState<any>(null);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
 
   const detectLocation = () => { // Implementation Note: In a production Firebase environment,
@@ -496,11 +650,15 @@ export default function SoukMarketplace() {
   }, []);
 
   const allProducts = dbProducts;
+  // Chat identity: the signed-in user if there is one, otherwise this browser's
+  // guest identity — so messaging works in the no-login prototype.
+  const chatIdentity = user || { uid: getDeviceId(), displayName: getDeviceName(), email: getDeviceName() };
 
   const toggleLike = (product: Product) => {
     const next = new Set(Array.from(likedIds));
     next.has(product.id.toString()) ? next.delete(product.id.toString()) : next.add(product.id.toString());
     setLikedIds(next);
+    try { localStorage.setItem("souk_saved", JSON.stringify(Array.from(next))); } catch { /* ignore */ }
     showToast(next.has(product.id.toString()) ? "Added to Saved Finds" : "Removed from Saved");
   };
 
@@ -515,6 +673,13 @@ export default function SoukMarketplace() {
       if (userCity && b?.location?.toLowerCase() === userCity.toLowerCase() && a?.location?.toLowerCase() !== userCity.toLowerCase()) return 1;
       return 0;
     });
+
+  // Discovery rows — only shown on the default home view (no search/filter).
+  const isDefaultView = activeCategory === "all" && search.trim() === "" && !nearMeOnly;
+  const newArrivals = allProducts.slice(0, 10); // already newest-first from Firestore
+  const trending = [...allProducts].sort((a, b) => (b.reviews || 0) - (a.reviews || 0)).slice(0, 10);
+  const giveaways = allProducts.filter((p) => p.price === 0 || p.category === "giveaways").slice(0, 10);
+  const onViewProduct = (p: Product) => { setSelectedProduct(p); setPage("product-detail"); window.scrollTo(0, 0); };
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "'Inter', 'Segoe UI', sans-serif", color: COLORS.text }}>
@@ -547,8 +712,14 @@ export default function SoukMarketplace() {
           <>
             <Hero isMobile={isMobile} search={search} setSearch={setSearch} />
             <CategoryBar {...{ activeCategory, setActiveCategory }} />
+            {isDefaultView && (
+              <>
+                <Rail title="New Arrivals" icon={<Sparkle size={20} weight="fill" color={COLORS.gold} />} items={newArrivals} onView={onViewProduct} onLike={toggleLike} likedIds={likedIds} />
+                <Rail title="Trending Now" icon={<TrendUp size={20} weight="bold" color={COLORS.gold} />} items={trending} onView={onViewProduct} onLike={toggleLike} likedIds={likedIds} />
+                <Rail title="Free & Giveaways" icon={<Gift size={20} weight="fill" color={COLORS.gold} />} items={giveaways} onView={onViewProduct} onLike={toggleLike} likedIds={likedIds} />
+              </>
+            )}
             <ProductGrid {...{ filtered, setSelectedProduct, setPage, toggleLike, likedIds, setSearch, setActiveCategory }} />
-            <TestimonialsSection />
           </>
         )}
 
@@ -556,11 +727,12 @@ export default function SoukMarketplace() {
           <ProductDetail
             product={selectedProduct}
             onBack={() => setPage("home")}
-            user={user}
+            user={chatIdentity}
             setPage={setPage}
             showToast={showToast}
             setSelectedChatId={setSelectedChatId}
             isMobile={isMobile}
+            onViewSeller={(sid) => { setSelectedSellerId(sid); setPage("seller"); window.scrollTo(0, 0); }}
           />
         )}
 
@@ -578,8 +750,16 @@ export default function SoukMarketplace() {
           <SavedView {...{ likedIds, allProducts, toggleLike, setSelectedProduct, setPage }} />
         )}
 
+        {page === "my-listings" && (
+          <MyListingsView {...{ allProducts, setSelectedProduct, setPage, showToast }} />
+        )}
+
+        {page === "seller" && selectedSellerId && (
+          <SellerProfileView {...{ sellerId: selectedSellerId, allProducts, setSelectedProduct, setPage, toggleLike, likedIds }} />
+        )}
+
         {page === "messages" && (
-          <MessagesView user={user} selectedChatId={selectedChatId} setSelectedChatId={setSelectedChatId} isMobile={isMobile} />
+          <MessagesView user={chatIdentity} selectedChatId={selectedChatId} setSelectedChatId={setSelectedChatId} isMobile={isMobile} />
         )}
 
         {page === "seller-hub" && (
@@ -595,6 +775,17 @@ export default function SoukMarketplace() {
           <AccountView {...{ user, kycStatus, setPage, showToast }} />
         )}
       </div>
+
+      {/* Prominent "Sell" action on mobile — a floating button on the home feed */}
+      {isMobile && page === "home" && (
+        <button
+          onClick={() => { setPage("become-seller"); window.scrollTo(0, 0); }}
+          aria-label="Sell an item"
+          style={{ position: "fixed", right: 20, bottom: 84, zIndex: 1001, background: COLORS.gold, color: "#101a2a", border: "none", borderRadius: 30, height: 52, padding: "0 20px", display: "flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", cursor: "pointer" }}
+        >
+          <Plus size={22} weight="bold" /> Sell
+        </button>
+      )}
 
       {isMobile && (
         <BottomNav page={page} setPage={setPage} likedCount={likedIds.size} />
