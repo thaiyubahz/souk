@@ -601,6 +601,16 @@ export const router = createBrowserRouter([
     element: <LazyPage Component={SharedConversationPage} />,
     errorElement: <RootErrorBoundary />,
   },
+  // ── Souk prototype preview (additive, public) ──────────────────────────────
+  // The real /souk lives behind AuthGuard + KYC in the authenticated block
+  // below (left untouched). This extra PUBLIC route lets the standalone Souk
+  // prototype be viewed and demoed without logging in. When merging the Souk
+  // into the gated production app, this route can simply be removed.
+  {
+    path: '/souk-preview',
+    element: <LazyPage Component={SoukHomePage} />,
+    errorElement: <RootErrorBoundary />,
+  },
   {
     // Public viewer for a Barakah Labs Quiet Report shared by another user.
     // No auth required.

@@ -1,0 +1,113 @@
+// =====================================================================
+//  PROTOTYPE security rules for the Souk database (no-login demo).
+//
+//  HOW TO READ THIS FILE (beginner guide):
+//   - "Security rules" are the DOOR GUARD for the database. For every
+//     request to read or write data, Firebase checks these rules and
+//     either ALLOWS it or BLOCKS it.
+//   - "match" = "for this folder of data, here are the rules".
+//   - "allow read"   = who can VIEW data.
+//   - "allow create/update/delete" = who can ADD / CHANGE / REMOVE data.
+//   - "if true"  = always allowed.   "if false" = always blocked.
+//   - "if <condition>" = allowed only when the condition is satisfied.
+//   - "request.resource.data" = the NEW data being written (the incoming item).
+//   - "resource.data"         = the data ALREADY stored (the existing item).
+//   - Anything not matched by a rule is BLOCKED by default.
+//
+//  NOTE: this is the relaxed PROTOTYPE version (no login). The stricter,
+//  login-based PRODUCTION version lives in firestore.rules.
+// =====================================================================
+
+rules_version = '2';   // Tells Firebase we're using version 2 of the rules language (the current one).
+
+service cloud.firestore {
+  // Everything below applies to documents in our Cloud Firestore database.
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------
+    //  HELPER FUNCTION #1: validListing(d)
+    //  A reusable check. "d" is the listing being saved. Returns true
+    //  only if the data looks sensible. We call it before allowing a write.
+    // ---------------------------------------------------------------
+    function validListing(d) {
+      return d.name is string                 // the name must be text...
+        && d.name.size() > 0                  // ...not empty...
+        && d.name.size() <= 200               // ...and at most 200 characters.
+        && d.price is number                  // the price must be a number...
+        && d.price >= 0                       // ...and not negative.
+        && d.img is string                    // the image must be text (a link or inline image)...
+        && d.img.size() < 1400000;            // ...and small enough to keep the doc under Firestore's 1MB limit.
+    }
+
+    // ---------------------------------------------------------------
+    //  HELPER FUNCTION #2: isHalal(d)
+    //  Returns FALSE if the listing's NAME contains a banned word.
+    //  - ".lower()" converts the name to lowercase first, so the check
+    //    is case-insensitive ("GUN", "Gun", "gun" are all caught).
+    //  - ".matches(...)" tests the name against a pattern. The pattern
+    //    ".*(...)..*" means "contains any of these words anywhere".
+    //  - The leading "!" flips it: true = clean, false = contains a banned word.
+    // ---------------------------------------------------------------
+    function isHalal(d) {
+      return !(d.name.lower().matches('.*(weapon|guns?|rifle|pistol|firearm|ammo|ammunition|explosive|alcohol|wine|beer|liquor|whisky|vodka|drugs?|cocaine|heroin|cannabis|marijuana|pork|bacon|gambling|casino|lottery|betting|riba|tobacco|cigarette|vape|porn).*'));
+    }
+
+    // ---------------------------------------------------------------
+    //  PRODUCTS folder = the marketplace listings.
+    //  "{productId}" is a wildcard — these rules apply to EVERY product.
+    // ---------------------------------------------------------------
+    match /products/{productId} {
+      allow read: if true;                    // VIEW: anyone can browse products (it's a public marketplace).
+
+      // ADD a product: only if the data is valid AND it's a halal item.
+      allow create: if validListing(request.resource.data)
+        && isHalal(request.resource.data);
+
+      // EDIT a product: same checks (still must be valid + halal).
+      // NOTE: with no login we can't verify the owner here — the PRODUCTION
+      // rules (firestore.rules) restrict edits to the listing's real owner.
+      allow update: if validListing(request.resource.data)
+        && isHalal(request.resource.data);
+
+      // DELETE a product: allowed in the prototype (production restricts to owner).
+      allow delete: if true;
+    }
+
+    // ---------------------------------------------------------------
+    //  SELLERS folder = the shop profiles.
+    // ---------------------------------------------------------------
+    match /sellers/{sellerId} {
+      allow read: if true;                    // VIEW: anyone can see seller profiles.
+
+      // ADD a seller profile: only if it has a valid (non-empty) name.
+      allow create: if request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200;
+
+      allow update, delete: if false;         // No editing/deleting seller profiles in the prototype.
+    }
+
+    // ---------------------------------------------------------------
+    //  CHATS folder = conversations, with a "messages" sub-folder inside.
+    //  Open in the prototype so a buyer can message a seller WITHOUT logging
+    //  in. (Production limits this to the people in the conversation.)
+    // ---------------------------------------------------------------
+    match /chats/{chatId} {
+      allow read, write: if true;             // create / list / update a conversation.
+
+      // Messages live inside each chat. "{messageId}" applies to every message.
+      match /messages/{messageId} {
+        allow read, write: if true;           // read existing messages + send new ones.
+      }
+    }
+
+    // ---------------------------------------------------------------
+    //  CATCH-ALL: any other folder we didn't mention above is fully
+    //  locked. "{document=**}" means "every remaining path". This is a
+    //  safety net so nothing is accidentally left open.
+    // ---------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
