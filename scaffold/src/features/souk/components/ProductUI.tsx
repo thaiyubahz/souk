@@ -119,7 +119,7 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
         try { return JSON.parse(localStorage.getItem(RATED_KEY) || "{}"); } catch { return {}; }
     };
 
-    const [myRating, setMyRating] = useState<number>(() => readRated()[product.id] || 0);
+    const [myRating, setMyRating] = useState<number>(() => readRated()[String(product.id)] || 0);
     const [hoverStar, setHoverStar] = useState(0);
     const [avg, setAvg] = useState(product.rating);
     const [count, setCount] = useState(product.reviews);
@@ -129,10 +129,10 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
         try {
             // Pass the device's previous stars so a re-tap CHANGES the rating
             // (instead of counting as a brand-new vote).
-            const res = await SoukService.rateProduct(product.id, stars, myRating);
+            const res = await SoukService.rateProduct(String(product.id), stars, myRating);
             if (res) { setAvg(res.rating); setCount(res.reviews); }
             const map = readRated();
-            map[product.id] = stars;
+            map[String(product.id)] = stars;
             localStorage.setItem(RATED_KEY, JSON.stringify(map));
             const changed = myRating > 0;
             setMyRating(stars);
@@ -150,10 +150,10 @@ export function ProductDetail({ product, onBack, user, setPage, showToast, setSe
     const handleRemoveRating = async () => {
         if (!myRating) return;
         try {
-            const res = await SoukService.removeRating(product.id, myRating);
+            const res = await SoukService.removeRating(String(product.id), myRating);
             if (res) { setAvg(res.rating); setCount(res.reviews); }
             const map = readRated();
-            delete map[product.id]; // forget this device's rating
+            delete map[String(product.id)]; // forget this device's rating
             localStorage.setItem(RATED_KEY, JSON.stringify(map));
             setMyRating(0);
             setHoverStar(0);

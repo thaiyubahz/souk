@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Storefront, User, MagnifyingGlass, MapPin, Check, Heart, CaretRight, Sparkle, Key, BookOpen, Briefcase, ChatCenteredText, ShieldCheck, PaperPlaneTilt, Envelope, Lock,
+  Storefront, User, MagnifyingGlass, MapPin, Check, Heart, CaretRight, CaretLeft, Sparkle, Key, BookOpen, Briefcase, ChatCenteredText, ShieldCheck, PaperPlaneTilt, Envelope, Lock,
   Package, Gear, Laptop, Gift, DownloadSimple, Plus, TrendUp, Leaf
 } from "@phosphor-icons/react";
 import BecomeSeller from "./BecomeSeller";
-import { COLORS, type Product, ProductCard, ProductDetail, Navbar, BottomNav, Footer, StarRating } from "../components/SoukCommon";
+import { COLORS, type Product, ProductCard, ProductDetail, Navbar, SoukSubHeader, BottomNav, Footer, StarRating } from "../components/SoukCommon";
 import { auth, isFirebaseConfigured } from "@/config/firebase.config";
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { SoukService } from "../services/soukService";
 import { getDeviceId, getDeviceName } from "../services/identity";
+import { RayaStarCanvas } from "../../raya-home/components/RayaStarCanvas";
 
 // Categories match the real data (mock-data/categories.json + seeded products),
 // so filtering actually works. The `id` must equal the product's `category`.
@@ -25,31 +26,17 @@ const CATEGORIES = [
   { id: "digital", label: "Digital", icon: DownloadSimple },
 ];
 
-function Hero({ isMobile, search, setSearch }: { isMobile: boolean, search: string, setSearch: (s: string) => void }) {
+function Hero({ isMobile }: { isMobile: boolean }) {
   return (
-    <div style={{ padding: "64px 24px 48px", maxWidth: "100%", margin: "0 auto", textAlign: "center" }}>
-      {isMobile && (
-        <div style={{ position: "relative", marginBottom: 32 }}>
-          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: COLORS.textDim, display: "flex" }}>
-            <MagnifyingGlass size={16} />
-          </span>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search community..."
-            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "12px 16px 12px 42px", color: COLORS.text, fontSize: 13 }}
-          />
-        </div>
-      )}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(74,222,128,0.10)", border: "1px solid rgba(74,222,128,0.30)", borderRadius: 100, padding: "6px 16px", fontSize: 11, color: "#4ADE80", marginBottom: 24, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-        <Leaf size={13} weight="fill" /> Ethical &amp; Halal Commerce
+    <div style={{ padding: isMobile ? "20px 24px 40px" : "40px 48px 60px", textAlign: "center" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto" }}>
+        <h1 style={{ fontSize: isMobile ? 32 : 52, fontWeight: 700, color: COLORS.text, margin: "0 0 16px", lineHeight: 1.1, fontFamily: "'Cormorant Garamond', serif", letterSpacing: "1px" }}>
+          Community <span style={{ color: COLORS.gold }}>Recommended</span> Market
+        </h1>
+        <p style={{ fontSize: 18, color: "#8A8270", margin: "0 auto", maxWidth: 600, fontWeight: 400, fontStyle: "italic", opacity: 0.9 }}>
+          "Experience a marketplace built on Trust and Barakah."
+        </p>
       </div>
-      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(40px, 7vw, 72px)", fontWeight: 800, lineHeight: 1.05, margin: "0 0 20px", letterSpacing: "-0.5px", color: COLORS.text }}>
-        Empowering community with<br /><span style={{ color: COLORS.gold }}>Barakah.</span>
-      </h1>
-      <p style={{ color: COLORS.textMuted, fontSize: 16, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 40px" }}>
-        Buy, sell, and connect with your community — ethically, transparently, and with trust.
-      </p>
     </div>
   );
 }
@@ -85,19 +72,62 @@ function CategoryBar({ activeCategory, setActiveCategory }: any) {
 
 // A horizontal scrolling row of products (used for New / Trending / Giveaways).
 function Rail({ title, icon, items, onView, onLike, likedIds }: any) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   if (!items.length) return null;
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollTo = direction === "left" ? scrollLeft - clientWidth + 100 : scrollLeft + clientWidth - 100;
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
+    }
+  };
+
   return (
-    <div style={{ maxWidth: "100%", margin: "0 auto", padding: "0 24px 28px" }}>
+    <div style={{ maxWidth: "100%", margin: "0 auto", padding: "0 24px 28px", position: "relative" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         {icon}
         <h3 style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, margin: 0 }}>{title}</h3>
       </div>
-      <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-        {items.map((p: Product) => (
-          <div key={p.id} style={{ width: 260, flexShrink: 0 }}>
-            <ProductCard product={p} onView={onView} onLike={onLike} isLiked={likedIds.has(p.id.toString())} />
-          </div>
-        ))}
+
+      <div style={{ position: "relative" }}>
+        {/* Left Arrow */}
+        <button
+          onClick={() => scroll("left")}
+          style={{
+            position: "absolute", left: -12, top: "50%", transform: "translateY(-50%)", zIndex: 10,
+            background: "rgba(12,15,21,0.8)", border: `1px solid ${COLORS.border}`, borderRadius: "50%",
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            color: COLORS.gold, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
+          }}
+        >
+          <CaretLeft size={20} weight="bold" />
+        </button>
+
+        <div
+          ref={scrollRef}
+          style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none", scrollSnapType: "x proximity" }}
+        >
+          {items.map((p: Product) => (
+            <div key={p.id} style={{ width: 260, flexShrink: 0, scrollSnapAlign: "start" }}>
+              <ProductCard product={p} onView={onView} onLike={onLike} isLiked={likedIds.has(p.id.toString())} />
+            </div>
+          ))}
+        </div>
+
+        {/* Right Arrow */}
+        <button
+          onClick={() => scroll("right")}
+          style={{
+            position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", zIndex: 10,
+            background: "rgba(12,15,21,0.8)", border: `1px solid ${COLORS.border}`, borderRadius: "50%",
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            color: COLORS.gold, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
+          }}
+        >
+          <CaretRight size={20} weight="bold" />
+        </button>
       </div>
     </div>
   );
@@ -684,8 +714,12 @@ export default function SoukMarketplace() {
   const giveaways = allProducts.filter((p) => p.price === 0 || p.category === "giveaways").slice(0, 10);
   const onViewProduct = (p: Product) => { setSelectedProduct(p); setPage("product-detail"); window.scrollTo(0, 0); };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "'Inter', 'Segoe UI', sans-serif", color: COLORS.text }}>
+    <div style={{ minHeight: "100vh", background: "transparent", position: "relative", color: COLORS.text }}>
+      <RayaStarCanvas />
       <style>
         {`
           @keyframes pageEnter {
@@ -708,12 +742,16 @@ export default function SoukMarketplace() {
         </div>
       )}
 
-      <Navbar {...{ isMobile, userCity, setUserCity, setNearMeOnly, search, setSearch, setPage, showLocationList, setShowLocationList, detectLocation, likedIds }} />
+      <Navbar {...{ isMobile, setPage, showToast, toggleSidebar, user }} />
+      
+      {page === "home" && (
+        <SoukSubHeader {...{ isMobile, userCity, setUserCity, setNearMeOnly, search, setSearch, showLocationList, setShowLocationList, detectLocation, setPage }} />
+      )}
 
       <div key={page} className="page-transition-wrapper" style={{ paddingBottom: isMobile ? 80 : 0 }}>
         {page === "home" && (
           <>
-            <Hero isMobile={isMobile} search={search} setSearch={setSearch} />
+            <Hero isMobile={isMobile} />
             <CategoryBar {...{ activeCategory, setActiveCategory }} />
             {isDefaultView && (
               <>
